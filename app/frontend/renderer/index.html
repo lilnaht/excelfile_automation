@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Gerar Arquivo de Custo Prévio</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <p id="loadingText">Carregando...</p>
+  </div>
+  <div class="container">
+    <div class="glass-card">
+      <div class="header">
+        <h1 class="title"><strong>Gerar Arquivo de Custo Prévio</strong></h1>
+        <div id="dbStatus" class="db-status" title="Status da conexão com o banco de dados">
+          <div class="status-icon"></div>
+        </div>
+      </div>
+      <div class="input-container">
+        <input type="text" id="processInput" class="cost-input" placeholder="Digite o processo..." autocomplete="off" />
+        <div class="input-border"></div>
+      </div>
+      <button id="generateBtn" class="process-button">
+        <span class="button-text">Processar</span>
+        <div class="button-ripple"></div>
+      </button>
+      <div id="result" class="feedback hidden"></div>
+    </div>
+    <div class="background-blur"></div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+
+</html>

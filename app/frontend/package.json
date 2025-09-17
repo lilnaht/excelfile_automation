@@ -1,0 +1,36 @@
+{
+  "name": "custo-previo",
+  "version": "1.0.0",
+  "description": "Script para gerar arquivo excel de custo prévio, pré preenchido.",
+  "author": "Nathan Rodrigues",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.skb.custoprevio",
+    "productName": "Custo Prévio",
+    "files": [
+      "**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend",
+        "to": "backend"
+      }
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "win": {
+      "target": "zip",
+      "icon": "assets/icon.ico"
+    }
+  },
+  "devDependencies": {
+    "electron": "^26.6.10",
+    "electron-builder": "^24.13.3"
+  }
+}
