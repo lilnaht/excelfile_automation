@@ -1,6 +1,7 @@
 const loadingOverlay = document.querySelector('#loadingOverlay');
 const loadingText = document.querySelector('#loadingText');
 const lastUpdatetxt = document.querySelector('#lastUpdatetxt');
+const lastUpdateContainer = document.querySelector('#lastUpdateContainer');
 const updateBtn = document.querySelector('#updateBtn');
 
 // Esconde o loading overlay imediatamente no load, pois não há atualização automática
@@ -56,12 +57,34 @@ async function fetchLastUpdate() {
     const response = await fetch('http://127.0.0.1:5000/last-update');
     const data = await response.json();
     if (data.lastUpdate) {
-      lastUpdatetxt.textContent = `Última atualização: ${new Date(data.lastUpdate).toLocaleString()}`;
+      // Format date as MM/DD/YYYY, HH:mm:ss AM/PM
+      const formattedDate = new Date(data.lastUpdate).toLocaleString('en-US', {
+        month: 'numeric',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: true
+      });
+      if (lastUpdateContainer) {
+        lastUpdateContainer.textContent = `Última atualização: ${formattedDate}`;
+      } else {
+        lastUpdatetxt.textContent = `Última atualização: ${formattedDate}`;
+      }
     } else {
-      lastUpdatetxt.textContent = 'Última atualização: não encontrada';
+      if (lastUpdateContainer) {
+        lastUpdateContainer.textContent = 'Última atualização: não encontrada';
+      } else {
+        lastUpdatetxt.textContent = 'Última atualização: não encontrada';
+      }
     }
   } catch (err) {
-    lastUpdatetxt.textContent = 'Erro ao buscar última atualização';
+    if (lastUpdateContainer) {
+      lastUpdateContainer.textContent = 'Erro ao buscar última atualização';
+    } else {
+      lastUpdatetxt.textContent = 'Erro ao buscar última atualização';
+    }
     console.error(err);
   }
 }
