@@ -47,6 +47,7 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
     },
+    icon: path.join(__dirname, 'icon/icon.ico') 
   });
   mainWindow.loadFile(path.join(__dirname, "renderer", "index.html"));
   Menu.setApplicationMenu(null);

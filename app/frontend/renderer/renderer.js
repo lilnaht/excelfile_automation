@@ -1,17 +1,22 @@
-// No início de renderer.js
-
 const loadingOverlay = document.querySelector('#loadingOverlay');
 const loadingText = document.querySelector('#loadingText');
+const lastUpdatetxt = document.querySelector('#lastUpdatetxt')
 
 // Escuta o evento de sucesso vindo do main.js
 window.electronAPI.onUpdateComplete(() => {
-  console.log('Atualização do banco de dados concluída!');
-  loadingText.textContent = 'Atualização concluída com sucesso!';
+  console.log('Atualizacao do banco de dados concluida!');
+  loadingText.textContent = 'Atualizacao concluida com sucesso!';
 
   // Esconde a tela de carregamento suavemente após um pequeno atraso
   setTimeout(() => {
     loadingOverlay.classList.add('hidden');
-  }, 1000); // Atraso de 1 segundo
+  }, 2000); // Atraso de 1 segundo
+});
+
+window.electronAPI.onUpdateComplete(() =>{
+  console.log('Ultima atualizacao')
+  lastUpdatetxt.textContent = `Ultima atualizacao: ${lastUpdate}`;
+
 });
 
 // Escuta o evento de falha vindo do main.js
@@ -22,7 +27,6 @@ window.electronAPI.onUpdateFailed((_event, error) => {
   // Você pode adicionar um botão de "Tentar novamente" ou "Fechar" aqui, se desejar.
 });
 
-// ... resto do seu código renderer.js ...
 const input = document.querySelector('#processInput');
 const button = document.querySelector('#generateBtn');
 const feedback = document.querySelector('#result');

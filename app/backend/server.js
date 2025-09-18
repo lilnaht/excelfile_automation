@@ -14,61 +14,52 @@ const PORT = 5000;
 app.use(cors());
 app.use(express.json());
 
-// Configurações de caminhos
+// Paths
 const BASE_DIR = __dirname;
 const BASE_FILE = path.join(BASE_DIR, 'data', 'Excel_base', 'base.xlsx');
 const BASE_SHEET_NAME = 'Custo';
-const GENERATED_DIR = path.join(BASE_DIR, '..', '..', 'generated');
+const GENERATED_DIR = path.join(BASE_DIR, '..', '..', '..', '..', '..', '..', 'generated');
 
 if (!fs.existsSync(GENERATED_DIR)) {
   fs.mkdirSync(GENERATED_DIR, { recursive: true });
 }
 
-// --- CORREÇÃO 1: Usar a chave de serviço (service_role) para o backend ---
-const SUPABASE_URL = 'https://vrpudltnycggaxewzgsl.supabase.co';
-const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZycHVkbHRueWNnZ2F4ZXd6Z3NsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1ODAxOTM0NCwiZXhwIjoyMDczNTk1MzQ0fQ.Fyz5ZHXGImFVrnENUVxxIYZ7LMU3nDycS71_PAd9Jsg'; // <-- COLE SUA CHAVE 'service_role' AQUI
+// Supabase
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  throw new Error("Variáveis de ambiente não configuradas.");
+}
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-// Mapeamento
+// Map
 const DEST_MAP = {
   'Immobilized': 'Imobilizado', 'Resale': 'Revenda', 'Production': 'Produção',
   'Supplies': 'Insumo', 'SKF': 'China', 'Dólar': 'USD', 'Euro': 'EUR'
 };
 
-// Função auxiliar para formatar datas (versão aprimorada)
+// Helpers
 function formatDate(dt) {
   if (!dt) return null;
-
-  // VERIFICA SE É UM NÚMERO DE SÉRIE DO EXCEL
-  // A maioria dos números de série de datas recentes são maiores que 25569 (o número para 1970)
   if (typeof dt === 'number' && dt > 25569) {
-    // Fórmula matemática para converter o número de série do Excel para uma data JavaScript
     const date = new Date((dt - 25569) * 86400 * 1000);
-
-    // Formata a data manualmente para o formato YYYY-MM-DD para evitar problemas de fuso horário
     const year = date.getUTCFullYear();
     const month = String(date.getUTCMonth() + 1).padStart(2, '0');
     const day = String(date.getUTCDate()).padStart(2, '0');
-
     return `${year}-${month}-${day}`;
   }
-
-  // Se não for um número de série, tenta processar como uma data de texto normal (como antes)
   try {
     const date = new Date(dt);
-    if (isNaN(date.getTime())) return null; // Retorna nulo se a data for inválida
-
-    // A correção de fuso horário pode ser necessária para datas de texto
+    if (isNaN(date.getTime())) return null;
     const userTimezoneOffset = date.getTimezoneOffset() * 60000;
     const correctedDate = new Date(date.getTime() + userTimezoneOffset);
-
     return correctedDate.toISOString().split('T')[0];
   } catch (e) {
     return null;
   }
 }
 
-// Função para consultar cotação do dólar
 async function getDollarQuote(dateInput = null) {
   const now = dateInput ? new Date(dateInput) : new Date();
   const maxDaysBack = 10;
@@ -94,9 +85,7 @@ async function getDollarQuote(dateInput = null) {
   return { fxValue: null, fxDate: null };
 }
 
-// Função auxiliar para determinar a próxima revisão
 function getNextRevision(processDir, baseFileName) {
-  // Lista todos os arquivos no diretório do processo
   if (!fs.existsSync(processDir)) {
     return 'Rev1.0';
   }
@@ -104,7 +93,6 @@ function getNextRevision(processDir, baseFileName) {
   const files = fs.readdirSync(processDir);
   const basePattern = baseFileName.replace('- Rev1.0.xlsx', '');
 
-  // Encontra arquivos com o mesmo nome base e extrai as revisões
   const revisions = [];
   files.forEach(file => {
     if (file.startsWith(basePattern) && file.endsWith('.xlsx')) {
@@ -121,7 +109,6 @@ function getNextRevision(processDir, baseFileName) {
     return 'Rev1.0';
   }
 
-  // Encontra a maior revisão
   const latestRevision = revisions.reduce((max, current) => {
     if (current.major > max.major || (current.major === max.major && current.minor > max.minor)) {
       return current;
@@ -129,11 +116,11 @@ function getNextRevision(processDir, baseFileName) {
     return max;
   });
 
-  // Incrementa a revisão menor
   const newMinor = latestRevision.minor + 1;
   return `Rev${latestRevision.major}.${newMinor}`;
 }
 
+// Core
 async function generateFile(processInput) {
   try {
     const { data: processItems, error } = await supabase
@@ -154,13 +141,8 @@ async function generateFile(processInput) {
     const processDir = path.join(GENERATED_DIR, processIdVal);
     if (!fs.existsSync(processDir)) fs.mkdirSync(processDir, { recursive: true });
 
-    // Cria o nome base do arquivo (sem revisão)
     const baseFileName = `${processIdVal} - ${dateIdVal} - Cost Forecast - ${safeInvoice} - Rev1.0.xlsx`;
-
-    // Determina a próxima revisão
     const nextRevision = getNextRevision(processDir, baseFileName);
-
-    // Cria o nome final do arquivo com a revisão correta
     const fileName = baseFileName.replace('Rev1.0', nextRevision);
 
     const copyFile = path.join(processDir, fileName);
@@ -169,10 +151,8 @@ async function generateFile(processInput) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(copyFile);
     const ws = workbook.getWorksheet(BASE_SHEET_NAME);
-
     if (!ws) throw new Error('Planilha base "Custo" não encontrada no template');
 
-    // Preencher cabeçalho
     const { fxValue, fxDate } = await getDollarQuote();
     ws.getCell('D7').value = now;
     ws.getCell('D8').value = headerData.Process;
@@ -188,25 +168,12 @@ async function generateFile(processInput) {
 
     const cellDisponibilidade = ws.getCell('H7');
     cellDisponibilidade.value = Number(headerData['Requested Time of Availability']);
-    cellDisponibilidade.numFmt = 'dd/mm/yyyy'; // Formato de data brasileiro
+    cellDisponibilidade.numFmt = 'dd/mm/yyyy';
 
-    //const cellEmbarque = ws.getCell('H8');
-    //cellEmbarque.value = Number(headerData['Shipment Date']);
-    //cellEmbarque.numFmt = 'dd/mm/yyyy';
-
-    //const cellAtracacao = ws.getCell('H9');
-    //cellAtracacao.value = Number(headerData['Arrival Date']);
-    //cellAtracacao.numFmt = 'dd/mm/yyyy';
-
-    //const cellChegada = ws.getCell('H10');
-    //cellChegada.value = Number(headerData['Delivery Date']);
-    //cellChegada.numFmt = 'dd/mm/yyyy';
-    
     ws.getCell('G13').value = fxValue ? Number(fxValue) : 'Checar API';
     ws.getCell('G13').numFmt = '#,##0.0000';
     ws.getCell('H13').value = fxDate;
 
-    // --- CORREÇÃO 2: Preencher tabela de itens com FORMATAÇÃO BRASILEIRA ---
     let startRow = 25;
     processItems.forEach(item => {
       const row = ws.getRow(startRow);
@@ -288,7 +255,6 @@ app.post('/generate-file', async (req, res) => {
 app.get('/download-file/:fileName', (req, res) => {
   const { fileName } = req.params;
 
-  // Find the file in the generated directory
   const findFile = (dir) => {
     const files = fs.readdirSync(dir);
     for (const file of files) {
@@ -318,7 +284,7 @@ app.get('/download-file/:fileName', (req, res) => {
   });
 });
 
-// --- CORREÇÃO 3: Função startServer com teste de conexão ---
+// Start
 function startServer() {
   app.listen(PORT, async () => {
     console.log(`Servidor backend rodando na porta ${PORT}`);
