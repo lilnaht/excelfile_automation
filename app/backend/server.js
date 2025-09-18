@@ -18,10 +18,18 @@ app.use(express.json());
 const BASE_DIR = __dirname;
 const BASE_FILE = path.join(BASE_DIR, 'data', 'Excel_base', 'base.xlsx');
 const BASE_SHEET_NAME = 'Custo';
-const GENERATED_DIR = path.join(BASE_DIR, '..', '..', '..', '..', '..', '..', 'generated');
+const GENERATED_DIR = path.join(process.cwd(),'..','..','..','..','..','..', 'generated');
+console.log('[INFO] GENERATED_DIR path:', GENERATED_DIR);
 
 if (!fs.existsSync(GENERATED_DIR)) {
-  fs.mkdirSync(GENERATED_DIR, { recursive: true });
+  try {
+    fs.mkdirSync(GENERATED_DIR, { recursive: true });
+    console.log('[SUCCESS] GENERATED_DIR created successfully at:', GENERATED_DIR);
+  } catch (error) {
+    console.error('[ERROR] Failed to create GENERATED_DIR:', error.message);
+  }
+} else {
+  console.log('[INFO] GENERATED_DIR already exists at:', GENERATED_DIR);
 }
 
 // Supabase
@@ -122,6 +130,7 @@ function getNextRevision(processDir, baseFileName) {
 
 // Core
 async function generateFile(processInput) {
+  console.log('[INFO] Starting generateFile for process:', processInput);
   try {
     const { data: processItems, error } = await supabase
       .from('processos')
@@ -131,6 +140,8 @@ async function generateFile(processInput) {
     if (error) throw new Error(`Erro ao consultar Supabase: ${error.message}`);
     if (!processItems || processItems.length === 0) return { success: false, message: `Nenhum registro encontrado para o processo ${processInput}` };
 
+    console.log('[INFO] Found', processItems.length, 'items for process');
+
     const headerData = processItems[0];
     const now = new Date();
     const processIdVal = headerData.Process || 'PROCESSO';
@@ -139,19 +150,27 @@ async function generateFile(processInput) {
     const safeInvoice = invoiceIdVal.toString().replace(/[\/\s]/g, '_');
 
     const processDir = path.join(GENERATED_DIR, processIdVal);
-    if (!fs.existsSync(processDir)) fs.mkdirSync(processDir, { recursive: true });
+    console.log('[INFO] Process dir:', processDir);
+    if (!fs.existsSync(processDir)) {
+      fs.mkdirSync(processDir, { recursive: true });
+      console.log('[SUCCESS] Process dir created');
+    }
 
     const baseFileName = `${processIdVal} - ${dateIdVal} - Cost Forecast - ${safeInvoice} - Rev1.0.xlsx`;
     const nextRevision = getNextRevision(processDir, baseFileName);
     const fileName = baseFileName.replace('Rev1.0', nextRevision);
 
     const copyFile = path.join(processDir, fileName);
+    console.log('[INFO] Copying from', BASE_FILE, 'to', copyFile);
     fs.copyFileSync(BASE_FILE, copyFile);
+    console.log('[SUCCESS] File copied');
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(copyFile);
     const ws = workbook.getWorksheet(BASE_SHEET_NAME);
     if (!ws) throw new Error('Planilha base "Custo" não encontrada no template');
+
+    console.log('[INFO] Worksheet loaded');
 
     const { fxValue, fxDate } = await getDollarQuote();
     ws.getCell('D7').value = now;
@@ -209,7 +228,9 @@ async function generateFile(processInput) {
       startRow++;
     });
 
+    console.log('[INFO] Writing workbook to', copyFile);
     await workbook.xlsx.writeFile(copyFile);
+    console.log('[SUCCESS] File written');
 
     return { success: true, message: 'Arquivo gerado com sucesso', fileName };
   } catch (error) {
