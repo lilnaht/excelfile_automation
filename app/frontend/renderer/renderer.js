@@ -1,30 +1,77 @@
 const loadingOverlay = document.querySelector('#loadingOverlay');
 const loadingText = document.querySelector('#loadingText');
-const lastUpdatetxt = document.querySelector('#lastUpdatetxt')
+const lastUpdatetxt = document.querySelector('#lastUpdatetxt');
+const updateBtn = document.querySelector('#updateBtn');
+
+// Esconde o loading overlay imediatamente no load, pois não há atualização automática
+document.addEventListener('DOMContentLoaded', () => {
+  loadingOverlay.classList.add('hidden');
+  fetchLastUpdate();
+});
 
 // Escuta o evento de sucesso vindo do main.js
 window.electronAPI.onUpdateComplete(() => {
-  console.log('Atualizacao do banco de dados concluida!');
+  console.log('[✅] Atualização do banco de dados concluída!');
   loadingText.textContent = 'Atualizacao concluida com sucesso!';
+  showFeedback('Base de dados atualizada com sucesso!', 'success');
+
+  // Reseta estado do botão
+  isUpdating = false;
+  updateBtn.classList.remove('processing');
+  updateBtn.querySelector('.button-text').textContent = 'Atualizar Base';
+
+  updateDbStatus('connected');
 
   // Esconde a tela de carregamento suavemente após um pequeno atraso
   setTimeout(() => {
     loadingOverlay.classList.add('hidden');
   }, 2000); // Atraso de 1 segundo
-});
 
-window.electronAPI.onUpdateComplete(() =>{
-  console.log('Ultima atualizacao')
-  lastUpdatetxt.textContent = `Ultima atualizacao: ${lastUpdate}`;
-
+  // Atualiza a última atualização
+  fetchLastUpdate();
 });
 
 // Escuta o evento de falha vindo do main.js
 window.electronAPI.onUpdateFailed((_event, error) => {
-  console.error('Falha na atualização:', error);
-  // Muda o texto para mostrar o erro e não esconde a tela
+  console.error('[❌] Falha na atualização:', error);
   loadingText.textContent = `Erro na atualização: ${error}`;
-  // Você pode adicionar um botão de "Tentar novamente" ou "Fechar" aqui, se desejar.
+  showFeedback(`Erro na atualização: ${error}`, 'error');
+
+  // Reseta estado do botão
+  isUpdating = false;
+  updateBtn.classList.remove('processing');
+  updateBtn.querySelector('.button-text').textContent = 'Atualizar Base';
+
+  updateDbStatus('disconnected');
+
+  // Esconde a tela de carregamento
+  setTimeout(() => {
+    loadingOverlay.classList.add('hidden');
+  }, 2000);
+});
+
+
+async function fetchLastUpdate() {
+  try {
+    const response = await fetch('http://127.0.0.1:5000/last-update');
+    const data = await response.json();
+    if (data.lastUpdate) {
+      lastUpdatetxt.textContent = `Última atualização: ${new Date(data.lastUpdate).toLocaleString()}`;
+    } else {
+      lastUpdatetxt.textContent = 'Última atualização: não encontrada';
+    }
+  } catch (err) {
+    lastUpdatetxt.textContent = 'Erro ao buscar última atualização';
+    console.error(err);
+  }
+}
+
+// Chama ao carregar a página
+document.addEventListener('DOMContentLoaded', fetchLastUpdate);
+
+// Atualiza novamente quando a atualização do banco terminar
+window.electronAPI.onUpdateComplete(() => {
+  fetchLastUpdate();
 });
 
 const input = document.querySelector('#processInput');
@@ -34,6 +81,7 @@ const inputBorder = document.querySelector('.input-border');
 const dbStatus = document.querySelector('#dbStatus');
 
 let isProcessing = false;
+let isUpdating = false;
 let statusCheckInterval = null;
 
 // Eventos de input
@@ -44,8 +92,12 @@ input.addEventListener('blur', handleInputBlur);
 // Evento do botão
 button.addEventListener('click', handleProcessClick);
 
-// Ripple effect no botão
+// Evento do botão de atualização
+updateBtn.addEventListener('click', handleUpdateClick);
+
+// Ripple effect nos botões
 button.addEventListener('mousedown', createRippleEffect);
+updateBtn.addEventListener('mousedown', createRippleEffect);
 
 function handleInputChange(e) {
   const value = e.target.value.trim();
@@ -80,6 +132,29 @@ function handleProcessClick() {
   }
 
   processInput(inputValue);
+}
+
+function handleUpdateClick() {
+  if (isUpdating) return;
+
+  isUpdating = true;
+  updateBtn.classList.add('processing');
+  updateBtn.querySelector('.button-text').textContent = 'Atualizando...';
+
+  loadingOverlay.classList.remove('hidden');
+  loadingText.textContent = 'Atualizando base de dados...';
+
+  updateDbStatus('connecting');
+
+  electronAPI.sendUpdateRequest().catch(error => {
+    console.error('Erro ao enviar solicitação de atualização:', error);
+    showFeedback('Erro ao iniciar atualização.', 'error');
+    loadingOverlay.classList.add('hidden');
+    isUpdating = false;
+    updateBtn.classList.remove('processing');
+    updateBtn.querySelector('.button-text').textContent = 'Atualizar Base';
+    updateDbStatus('disconnected');
+  });
 }
 
 // Função de processamento com API real
@@ -155,18 +230,23 @@ input.addEventListener('keypress', (e) => {
 });
 
 // Funções de status do banco de dados
+function updateDbStatus(status) {
+  dbStatus.classList.remove('connected', 'disconnected', 'connecting');
+  dbStatus.classList.add(status);
+}
+
 async function checkDatabaseStatus() {
   try {
     const response = await fetch('http://127.0.0.1:5000/status');
     const data = await response.json();
 
     if (data.status === 'connected') {
-      dbStatus.className = 'db-status connected';
+      updateDbStatus('connected');
     } else {
-      dbStatus.className = 'db-status disconnected';
+      updateDbStatus('disconnected');
     }
   } catch (error) {
-    dbStatus.className = 'db-status disconnected';
+    updateDbStatus('disconnected');
   }
 }
 

@@ -18,7 +18,9 @@
       <div class="header">
         <h1 class="title"><strong>Gerar Arquivo de Custo Prévio</strong></h1>
         <div id="dbStatus" class="db-status" title="Status da conexão com o banco de dados">
-          <div class="status-icon"></div>
+          <svg class="status-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C13.1 2 14 2.9 14 4V6H16V4C16 1.79 14.21 0 12 0S8 1.79 8 4V6H10V4C10 2.9 10.9 2 12 2M4 8V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8H4M6 10H18V20H6V10Z"/>
+          </svg>
         </div>
       </div>
       <div class="input-container">
@@ -27,6 +29,10 @@
       </div>
       <button id="generateBtn" class="process-button">
         <span class="button-text">Processar</span>
+        <div class="button-ripple"></div>
+      </button>
+      <button id="updateBtn" class="update-button">
+        <span class="button-text">Atualizar Base</span>
         <div class="button-ripple"></div>
       </button>
       <div id="lastUpdate">

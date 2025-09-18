@@ -9,6 +9,7 @@ const CLEAN_DATA_PATH = path.join(__dirname, 'data', 'cleaned_data.xlsx');
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const TABLE_NAME = 'processos';
+const UPDATES_TABLE = 'updates'; // tabela para gravar a última atualização
 // ---------------------
 
 // --- SUPABASE CLIENT ---
@@ -58,6 +59,37 @@ async function updateDatabase() {
     if (insertError) throw insertError;
 
     console.log('✅ Base de dados atualizada com sucesso no Supabase!');
+
+    // --- SOBRESCREVER DATA DA ÚLTIMA ATUALIZAÇÃO ---
+    const now = new Date().toISOString();
+
+    // Primeiro verifica se já existe algum registro
+    const { data: existing, error: selectError } = await supabase
+      .from(UPDATES_TABLE)
+      .select('id')
+      .limit(1)
+      .single();
+
+    if (selectError && selectError.code !== 'PGRST116') { // ignora "No rows found"
+      console.error('Erro ao verificar tabela updates:', selectError.message);
+    }
+
+    if (existing) {
+      // Atualiza o registro existente
+      const { error: updateError } = await supabase
+        .from(UPDATES_TABLE)
+        .update({ lastUpdate: now })
+        .eq('id', existing.id);
+      if (updateError) console.error('Erro ao atualizar a tabela updates:', updateError.message);
+      else console.log(`✅ Última atualização sobrescrita: ${now}`);
+    } else {
+      // Cria o registro se não existir
+      const { error: insertUpdateError } = await supabase
+        .from(UPDATES_TABLE)
+        .insert([{ lastUpdate: now }]);
+      if (insertUpdateError) console.error('Erro ao criar registro na tabela updates:', insertUpdateError.message);
+      else console.log(`✅ Última atualização registrada: ${now}`);
+    }
   } else {
     console.log('Nenhum dado para atualizar.');
   }

@@ -211,9 +211,9 @@ async function generateFile(processInput) {
 
     await workbook.xlsx.writeFile(copyFile);
 
-    return { success: true, message: 'Arquivo gerado ✅', fileName };
+    return { success: true, message: 'Arquivo gerado com sucesso', fileName };
   } catch (error) {
-    console.error('Erro ao gerar arquivo:', error);
+    console.error('[ERROR] Erro ao gerar arquivo:', error);
     return { success: false, message: `Erro interno: ${error.message}` };
   }
 }
@@ -228,6 +228,27 @@ app.get('/status', async (req, res) => {
     res.json({ status: 'connected', message: 'Conectado ao banco de dados' });
   } catch (error) {
     res.status(500).json({ status: 'disconnected', message: 'Erro interno' });
+  }
+});
+
+app.get('/last-update', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('updates')
+      .select('lastUpdate')
+      .order('lastUpdate', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      res.json({ lastUpdate: data[0].lastUpdate });
+    } else {
+      res.json({ lastUpdate: null });
+    }
+  } catch (err) {
+    console.error('Erro ao buscar última atualização:', err.message);
+    res.status(500).json({ error: 'Erro interno' });
   }
 });
 
@@ -284,21 +305,20 @@ app.get('/download-file/:fileName', (req, res) => {
   });
 });
 
-// Start
 function startServer() {
   app.listen(PORT, async () => {
-    console.log(`Servidor backend rodando na porta ${PORT}`);
-    console.log('Testando conexão com o Supabase...');
+    console.log(`[START] Servidor backend rodando na porta ${PORT}`);
+    console.log('[INFO] Testando conexao com o Supabase...');
     try {
       const { error } = await supabase.from('processos').select('id').limit(1);
       if (error) {
-        console.error('--- ❌ FALHA NA CONEXÃO COM SUPABASE ---');
-        console.error(`Detalhes: ${error.message}`);
+        console.error('[ERROR] Falha na conexao com Supabase');
+        console.error(`[INFO] Detalhes: ${error.message}`);
       } else {
-        console.log('✅ Conectado ao Supabase com sucesso.');
+        console.log('[SUCCESS] Conectado ao Supabase com sucesso.');
       }
     } catch (err) {
-      console.error('Ocorreu um erro inesperado ao testar a conexão:', err);
+      console.error('[ERROR] Ocorreu um erro inesperado ao testar a conexao:', err);
     }
   });
 }
